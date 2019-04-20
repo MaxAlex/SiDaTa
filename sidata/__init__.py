@@ -1,8 +1,17 @@
 import warnings
+import six
 
 
-
-class Entry(dict):
+class TableEntry(object):
+    """
+    Class for rows and columns generated from a Table object; get and set
+    items by either row/column header strings or by numeric index.  Changing
+    an item in the TableEntry object also changes that item in the underlying
+    Table.
+    """
+    # Modifying values corresponding to headers in the source Table
+    # changes those values in the Table.  New keys that aren't in the
+    # source table cannot be added.
     def __init__(self, parent, index, is_row):
         self.parent = parent
         self.index = index
@@ -15,37 +24,57 @@ class Entry(dict):
             self.parent.get_cell(col_index = self.index, row_name = key)
 
     def __setitem__(self, key, value):
+        if self.parent:
+            if ((self.is_row and key not in self.parent.row_headers) or
+                    (not self.is_row and key not in self.parent.column_headers)):
+                raise KeyError("Can't assign to a key that is not in "
+                               "the source Table; use Table.add_column "
+                               "or Table.add_row first.")
         if self.is_row:
             self.parent.set_cell(row_index = self.index, column_name = key,
-                                value = value)
+                                 value = value)
         else:
             self.parent.set_cell(col_index = self.index, row_name = key,
-                                value = value)
+                                 value = value)
+
+    def __delitem__(self, key):
+        raise TypeError("Can't delete individual cells from a Table; "
+                        "use Table.remove_column or Table.remove_row "
+                        "instead.")
+
+    def as_list(self):
+        if self.is_row:
+            return self.parent.table[self.index]
+        else:
+            return [r[self.index] for r in self.parent.table]
 
 
 class Table(object):
     def __init__(self, target, column_headers = None, row_headers = None):
-        if not isinstance(target, basestring):
+        if not isinstance(target, six.string_types):
             raise AssertionError("Matrix and Pandas conversion, but not yet!")
 
-        if target.lower().endswith('.csv'):
-            from csv_r import csv_reader
+        file_ext = target.split('.')[-1]
+
+        if file_ext in ['csv', 'tsv']:
+            from sidata.csv_r import csv_reader
             source = csv_reader(target)
-        elif (target.lower().endswith('.xlsx')
-              or target.lower().endswith('.xls')):
-            from excel_r import excel_reader
-            source = excel_reader(target)
+        # elif file_ext in ['xlsx', 'xls']:
+        #     from sidata.excel_r import excel_reader
+        #     source = excel_reader(target)
         else:
             raise IOError("Perhaps sqlite, but not yet!")
 
         self.table = []
         
         if column_headers is None:
-            column_headers = source.next()
+            self.column_headers = next(source.__iter__())
             if not (len(self.column_headers) == len(set(self.column_headers))):
                 raise IOError("No valid table header, and column_header not specified.")
+        else:
+            self.column_headers = column_headers
 
-        self.column_headers = {ch: i for i, ch in enumerate(column_headers)}
+        self.column_headers = {ch: i for i, ch in enumerate(self.column_headers)}
 
         for i, row in enumerate(source):
             if len(row) != len(column_headers):
@@ -63,16 +92,23 @@ class Table(object):
 
         if self.table[0] == column_headers:
             warnings.warn("First row is identical to column headers.")
-            #self.table = self.table[1:] ## Warn or fix it?
 
     def __getitem__(self, row):
         return self.get_row(row)
 
     def get_row(self, row):
-        return Entry(self, row, True)
+        try:
+            row_i = self.row_headers[row]
+        except KeyError:
+            row_i = int(row)
+        return TableEntry(self, row_i, True)
 
     def get_col(self, col):
-        return Entry(self, col, False)
+        try:
+            col_i = self.column_headers[col]
+        except KeyError:
+            col_i = int(col)
+        return TableEntry(self, col_i, False)
 
     def get_cell(self,
                  row_index = None, col_index = None,
