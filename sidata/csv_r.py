@@ -13,8 +13,8 @@ class csv_reader:
             self.filept = open(target, 'r')
         elif six.PY3:
             self.filept = open(target, newline = '')
-        self.source = csv.reader(self.filept)
 
+        self.source = csv.reader(self.filept)
         self.header = next(self.source)
 
     def __iter__(self):
