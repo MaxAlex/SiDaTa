@@ -1,3 +1,0 @@
-Notes on SiDaTa development:
-- Probably call it "done" when csv, excel, and sqlite are supported, and there's a bit of documentation.
-- There should be a utility function common to the subclasses that checks that an input row matches the columns
