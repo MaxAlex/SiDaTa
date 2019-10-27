@@ -7,17 +7,22 @@ class Reader:
     Basic interface for reading tables in CSV, XLSX, etc form.  Yields
     a sequence of dictionaries corresponding to rows in the table.
     """
-    def __init__(self, filename):
-        file_ext = filename.split('.')[-1]
+    def __init__(self, filename, table = None, open_as_type = None):
+        if open_as_type is not None:
+            file_ext = open_as_type
+        else:
+            file_ext = filename.split('.')[-1]
 
-        if file_ext in ['csv', 'tsv']:
+
+        if file_ext in {'csv', 'tsv'}:
             from sidata.csv_r import csv_reader
             self.source = csv_reader(filename)
-        # elif file_ext in ['xlsx', 'xls']:
-        #     from sidata.excel_r import excel_reader
-        #     source = excel_reader(target)
+        elif file_ext in {'xlsx'}:
+            from sidata.excel_r import excel_reader
+            self.source = excel_reader(filename, table)
         else:
-            raise IOError("Perhaps sqlite, but not yet!")
+            from sidata.sqlite_r import sqilte_reader
+            self.source = sqlite_reader(filename, table)
 
         self.columns = self.source.header
 
@@ -40,21 +45,23 @@ class Writer:
     table.  Dictionary keys must match specified column names.
     """
 
-    def __init__(self, filename, columns):
-        file_ext = filename.split('.')[-1]
+    def __init__(self, filename, columns, table = None, open_as_type = None):
+        if open_as_type is not None:
+            file_ext = open_as_type
+        else:
+            file_ext = filename.split('.')[-1]
 
-        if file_ext in ['csv', 'tsv']:
+        if file_ext in {'csv', 'tsv'}:
             from sidata.csv_r import csv_writer
             self.destination = csv_writer(filename, columns)
-        # elif file_ext in ['xlsx', 'xls']:
-        #     from sidata.excel_r import excel_reader
-        #     source = excel_reader(target)
-        else:
-            raise IOError("Perhaps sqlite, but not yet!")
+        elif file_ext in {'xlsx'}:
+            from sidata.excel_r import excel_writer
+            self.destination = excel_writer(filename, columns, table)
+        elif file_ext in {'sql', 'sqlite'}:
+            from sidata.sqlite_r import sqlite_writer
+            self.destination = sqlite_writer(filename, columns, table)
 
         self.columns = columns
-        #self.__call__ = self.destination.write
-        self.close = self.destination.close
 
     def __call__(self, row):
         self.destination.write(row)
