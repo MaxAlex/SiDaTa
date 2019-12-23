@@ -21,7 +21,7 @@ class Reader:
             from sidata.excel_r import excel_reader
             self.source = excel_reader(filename, table)
         else:
-            from sidata.sqlite_r import sqilte_reader
+            from sidata.sqlite_r import sqlite_reader
             self.source = sqlite_reader(filename, table)
 
         self.columns = self.source.header
