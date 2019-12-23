@@ -1,10 +1,6 @@
 import sqlite3
 
-
-
-
-
-
+ROWS_PER_COMMIT = 100
 
 
 class sqlite_reader:
@@ -24,20 +20,20 @@ class sqlite_reader:
 
         if columns:
             col_string = ', '.join(columns)
-            cmd = ["SELECT ? FROM ?", (col_string, table)]
+            self.cur = self.con.execute("SELECT %s FROM %s" % (col_string, table))
         else:
-            cmd = ["SELECT * FROM ?", (table)]
-        self.cur = self.con.execute(*cmd)
-        self.columns = (columns if columns else
+            self.cur = self.con.execute("SELECT * FROM %s" % table)
+
+        self.header = (columns if columns else
                         [x[0] for x in self.cur.description])
-
-
 
     def __iter__(self):
         while True:
-            rows  = self.cur.fetchmany()
+            rows = self.cur.fetchmany()
+            if not rows:
+                break
             for row in rows:
-                return row
+                yield row
 
     def close(self):
         self.con.close()
@@ -60,7 +56,8 @@ class sqlite_writer:
     def __init__(self, filename, columns, table):
         self.con = sqlite3.connect(filename)
         self.table = table
-        
+        self.commit_waiting = 0
+
         if isinstance(columns[0], tuple):
             assert set(map(len, columns)) == {2}
             self.columns, self.col_types = list(zip(*columns))
@@ -80,11 +77,11 @@ class sqlite_writer:
             else:
                 t = 'text'
             self.col_types.append(t)
-            
-            self.con.execute("CREATE TABLE ? (?)",
-                         (self.table,
-                          ', '.join([c + ' ' + t for c, t in
-                                    zip(self.columns, self.col_types)])))
+
+        columns = ', '.join([c + ' ' + t for c, t in
+                              zip(self.columns, self.col_types)])
+        self.con.execute("CREATE TABLE %s (%s)" %
+                         (self.table, columns))
         
     def write(self, row):
         if isinstance(row, dict):
@@ -104,10 +101,15 @@ class sqlite_writer:
                 if t == 'int':
                     assert(val % 1 == 0,
                            "Inferred integer type but got value %s" % val)
-                    
-            
-        self.con.execute("INSERT INTO ? VALUES ( ? )",
-                         (self.table, ','.join(map(str, row))))
+
+        self.con.execute("INSERT INTO %s VALUES (%s)" %
+                         (self.table, ', '.join('?' * len(row))),
+                         map(str, row))
+
+        self.commit_waiting += 1
+        if self.commit_waiting > ROWS_PER_COMMIT:
+            self.con.commit()
 
     def close(self):
+        self.con.commit()
         self.con.close()
