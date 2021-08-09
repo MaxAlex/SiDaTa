@@ -95,16 +95,15 @@ class sqlite_writer:
             # because the sqlite errors aren't always helpful.
             for t, val in zip(self.col_types, row):
                 if t == 'real' or t == 'int':
-                    assert(isinstance(val, int) or isinstance(val, float),
-                           "Inferred numeric type but got value %s" % val)
+                    assert(isinstance(val, int) or
+                           isinstance(val, float)), "Inferred numeric type but got value %s" % val
                     
                 if t == 'int':
-                    assert(val % 1 == 0,
-                           "Inferred integer type but got value %s" % val)
+                    assert(val % 1 == 0),"Inferred integer type but got value %s" % val
 
         self.con.execute("INSERT INTO %s VALUES (%s)" %
                          (self.table, ', '.join('?' * len(row))),
-                         map(str, row))
+                         list(map(str, row)))
 
         self.commit_waiting += 1
         if self.commit_waiting > ROWS_PER_COMMIT:
