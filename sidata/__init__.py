@@ -7,7 +7,7 @@ class Reader:
     Basic interface for reading tables in CSV, XLSX, etc form.  Yields
     a sequence of dictionaries corresponding to rows in the table.
     """
-    def __init__(self, filename, table = None, open_as_type = None):
+    def __init__(self, filename, table = None, open_as_type = None, **kwargs):
         if open_as_type is not None:
             file_ext = open_as_type
         else:
@@ -16,13 +16,13 @@ class Reader:
 
         if file_ext in {'csv', 'tsv'}:
             from sidata.csv_r import csv_reader
-            self.source = csv_reader(filename)
+            self.source = csv_reader(filename, **kwargs)
         elif file_ext in {'xlsx'}:
             from sidata.excel_r import excel_reader
-            self.source = excel_reader(filename, table)
+            self.source = excel_reader(filename, table, **kwargs)
         else:
             from sidata.sqlite_r import sqlite_reader
-            self.source = sqlite_reader(filename, table)
+            self.source = sqlite_reader(filename, table, **kwargs)
 
         self.columns = self.source.header
 
@@ -45,7 +45,7 @@ class Writer:
     table.  Dictionary keys must match specified column names.
     """
 
-    def __init__(self, filename, columns, table = None, open_as_type = None):
+    def __init__(self, filename, columns, table = None, open_as_type = None, **kwargs):
         if open_as_type is not None:
             file_ext = open_as_type
         else:
@@ -53,13 +53,13 @@ class Writer:
 
         if file_ext in {'csv', 'tsv'}:
             from sidata.csv_r import csv_writer
-            self.destination = csv_writer(filename, columns)
+            self.destination = csv_writer(filename, columns, **kwargs)
         elif file_ext in {'xlsx'}:
             from sidata.excel_r import excel_writer
-            self.destination = excel_writer(filename, columns, table)
+            self.destination = excel_writer(filename, columns, table, **kwargs)
         elif file_ext in {'sql', 'sqlite'}:
             from sidata.sqlite_r import sqlite_writer
-            self.destination = sqlite_writer(filename, columns, table)
+            self.destination = sqlite_writer(filename, columns, table, **kwargs)
 
         self.columns = columns
 
@@ -80,7 +80,7 @@ class Modifier:
 
     def __init__(self, filename,
                  outputfile = None, tag = None, ext = None,
-                 columns = [], add_cols = []):
+                 columns = [], add_cols = [], **kwargs):
 
         if not (outputfile or tag or ext):
             raise IOError("Cannot modify file in place; specify "
@@ -101,12 +101,12 @@ class Modifier:
             comps[-1] = ext
             outputfile = '.'.join(comps)
 
-        self.rdr = Reader(filename)
+        self.rdr = Reader(filename, **kwargs)
         self.read_columns = self.rdr.columns
 
         if not columns:
             columns = self.rdr.columns + add_cols
-        self.wtr = Writer(outputfile, columns)
+        self.wtr = Writer(outputfile, columns, **kwargs)
         self.write_columns = columns
 
     def __iter__(self):
