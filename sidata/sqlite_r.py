@@ -80,9 +80,14 @@ class sqlite_writer:
 
         columns = ', '.join([c + ' ' + t for c, t in
                               zip(self.columns, self.col_types)])
-        self.con.execute("CREATE TABLE %s (%s)" %
-                         (self.table, columns))
-        
+
+        cmd = "CREATE TABLE %s (%s)" % (self.table, columns)
+        try:
+            self.con.execute(cmd)
+        except OperationalError as err:
+            print(cmd)
+            raise err
+
     def write(self, row):
         if isinstance(row, dict):
             row = [row[x] for x in self.columns]
@@ -100,6 +105,7 @@ class sqlite_writer:
                     
                 if t == 'int':
                     assert(val % 1 == 0),"Inferred integer type but got value %s" % val
+
 
         self.con.execute("INSERT INTO %s VALUES (%s)" %
                          (self.table, ', '.join('?' * len(row))),
