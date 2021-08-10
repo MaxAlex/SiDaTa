@@ -67,6 +67,8 @@ class sqlite_writer:
             self.col_types = None
             self.type_inf = True
 
+        # self.columns = ['[%s]' % x for x in self.columns]
+
     def typify_columns(self, values):
         self.col_types = []
         for value in values:
@@ -78,8 +80,7 @@ class sqlite_writer:
                 t = 'text'
             self.col_types.append(t)
 
-        columns = ', '.join([c + ' ' + t for c, t in
-                              zip(self.columns, self.col_types)])
+        columns = ', '.join(["[%s] %s" % (c, t) for c, t in zip(self.columns, self.col_types)])
 
         cmd = "CREATE TABLE %s (%s)" % (self.table, columns)
         try:
