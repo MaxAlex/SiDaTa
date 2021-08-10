@@ -84,7 +84,7 @@ class sqlite_writer:
         cmd = "CREATE TABLE %s (%s)" % (self.table, columns)
         try:
             self.con.execute(cmd)
-        except OperationalError as err:
+        except sqlite3.OperationalError as err:
             print(cmd)
             raise err
 
@@ -99,12 +99,12 @@ class sqlite_writer:
             # Check to make sure inferred types are still valid, just
             # because the sqlite errors aren't always helpful.
             for t, val in zip(self.col_types, row):
-                if t == 'real' or t == 'int':
+                if (t == 'real' or t == 'int') and val is not None:
                     assert(isinstance(val, int) or
                            isinstance(val, float)), "Inferred numeric type but got value %s" % val
                     
-                if t == 'int':
-                    assert(val % 1 == 0),"Inferred integer type but got value %s" % val
+                if t == 'int' and val is not None:
+                    assert(val % 1 == 0), "Inferred integer type but got value %s" % val
 
 
         self.con.execute("INSERT INTO %s VALUES (%s)" %
