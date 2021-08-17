@@ -1,6 +1,6 @@
 import sqlite3
 
-ROWS_PER_COMMIT = 100
+ROWS_PER_COMMIT = 1000
 
 
 class sqlite_reader:
@@ -19,13 +19,13 @@ class sqlite_reader:
         self.con = sqlite3.connect(target)
 
         if columns:
-            col_string = ', '.join(columns)
+            col_string = ', '.join(['[%s]' % x for x in columns])
             self.cur = self.con.execute("SELECT %s FROM %s" % (col_string, table))
         else:
             self.cur = self.con.execute("SELECT * FROM %s" % table)
 
         self.header = (columns if columns else
-                        [x[0] for x in self.cur.description])
+                        [x[0].strip('[]') for x in self.cur.description])
 
     def __iter__(self):
         while True:
@@ -58,7 +58,21 @@ class sqlite_writer:
         self.table = table
         self.commit_waiting = 0
 
-        if isinstance(columns[0], tuple):
+        table_manifest = self.con.execute("SELECT * FROM sqlite_master WHERE type='table';").fetchall()
+        if self.table in [x[1] for x in table_manifest]:
+            manifest = [x for x in table_manifest if self.table == x[1]][0]
+            table_desc = manifest[-1]
+            table_columns = {}
+            for col_type in table_desc.strip(')').split(' (')[1].split(', '):
+                col, typ = col_type.rsplit(' ', 1)
+                table_columns[col.strip('[]')] = typ
+            if set(table_columns) != set(columns):
+                raise RuntimeError("Column mismatch with existing database: %s" %
+                                   (set(table_columns) ^ set(columns)))
+            self.columns = columns
+            self.col_types = [table_columns[c] for c in columns]
+            self.type_inf = False
+        elif isinstance(columns[0], tuple):
             assert set(map(len, columns)) == {2}
             self.columns, self.col_types = list(zip(*columns))
             self.type_inf = False
@@ -66,8 +80,6 @@ class sqlite_writer:
             self.columns = columns
             self.col_types = None
             self.type_inf = True
-
-        # self.columns = ['[%s]' % x for x in self.columns]
 
     def typify_columns(self, values):
         self.col_types = []
