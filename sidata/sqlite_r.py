@@ -138,6 +138,7 @@ class sqlite_writer:
         self.commit_waiting += 1
         if self.commit_waiting > self.commit_interval:
             self.con.commit()
+            self.commit_waiting = 0
 
     def close(self):
         self.con.commit()
