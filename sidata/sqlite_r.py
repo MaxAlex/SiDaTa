@@ -15,14 +15,24 @@ class sqlite_reader:
     columns will be read from the database.
     """
 
-    def __init__(self, target, table, columns = None):
+    def __init__(self, target, table, columns=None, select=None):
         self.con = sqlite3.connect(target)
 
+
         if columns:
-            col_string = ', '.join(['[%s]' % x for x in columns])
-            self.cur = self.con.execute("SELECT %s FROM %s" % (col_string, table))
+            col_selector = ', '.join(['[%s]' % x for x in columns])
+            # self.cur = self.con.execute("SELECT %s FROM %s" % (col_string, table))
         else:
-            self.cur = self.con.execute("SELECT * FROM %s" % table)
+            col_selector = "*"
+            # self.cur = self.con.execute("SELECT * FROM %s" % table)
+
+        if select:
+            row_items = ["%s = '%s'" % (k, v) for k, v in select.items()]
+            row_selector = " WHERE %s" % ','.join(row_items)
+        else:
+            row_selector = ''
+
+        self.cur = self.con.execute("SELECT %s FROM %s%s" % (col_selector, table, row_selector))
 
         self.header = (columns if columns else
                         [x[0].strip('[]') for x in self.cur.description])
