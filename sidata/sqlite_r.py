@@ -1,6 +1,6 @@
 import sqlite3
 
-ROWS_PER_COMMIT = 1000
+DEFAULT_COMMIT_FREQUENCY = 1000
 
 
 class sqlite_reader:
@@ -63,10 +63,11 @@ class sqlite_writer:
     in sqlite.)
     """
 
-    def __init__(self, filename, columns, table):
+    def __init__(self, filename, columns, table, commit_interval=None):
         self.con = sqlite3.connect(filename)
         self.table = table
         self.commit_waiting = 0
+        self.commit_interval = commit_interval if commit_interval is not None else DEFAULT_COMMIT_FREQUENCY
 
         table_manifest = self.con.execute("SELECT * FROM sqlite_master WHERE type='table';").fetchall()
         if self.table in [x[1] for x in table_manifest]:
@@ -135,7 +136,7 @@ class sqlite_writer:
                          list(map(str, row)))
 
         self.commit_waiting += 1
-        if self.commit_waiting > ROWS_PER_COMMIT:
+        if self.commit_waiting > self.commit_interval:
             self.con.commit()
 
     def close(self):
